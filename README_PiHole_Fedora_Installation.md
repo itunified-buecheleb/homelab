@@ -73,7 +73,7 @@ To secure Pi-hole and make it run over HTTPS on port 443, follow these steps:
    Open the Pi-hole web server configuration file for **lighttpd**:
 
    ```bash
-   sudo nano /etc/lighttpd/lighttpd.conf
+   sudo vi /etc/lighttpd/lighttpd.conf
    ```
 
 2. **Change the port to 443**:
