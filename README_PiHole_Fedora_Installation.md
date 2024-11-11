@@ -1,7 +1,7 @@
 
-# Pi-hole Installation on Fedora
+# Pi-hole Installation on Fedora with Unbound and Firewall Configuration
 
-This guide walks you through the installation process of Pi-hole on a Fedora-based system. Pi-hole will run under its own user, `pihole`, for security and management reasons.
+This guide walks you through the installation process of **Pi-hole** on a Fedora-based system. It also covers how to run Pi-hole under its own user, configure **Unbound** as the DNS resolver, and set up **firewalld** to allow traffic to Pi-hole on port **443**.
 
 ## Prerequisites
 
@@ -27,9 +27,17 @@ This guide walks you through the installation process of Pi-hole on a Fedora-bas
    sudo dnf install -y curl wget sudo
    ```
 
-## Step 2: Create a separate user for Pi-hole
+3. **Install Unbound (Optional, for local DNS resolution)**:
 
-Pi-hole will run under its own user to isolate it from other system processes. The Pi-hole installation script will create the `pihole` user automatically. 
+   If you want to use **Unbound** for local DNS resolution, install it using:
+
+   ```bash
+   sudo dnf install unbound -y
+   ```
+
+## Step 2: Create a Separate User for Pi-hole
+
+Pi-hole will run under its own user to isolate it from other system processes. The Pi-hole installation script will create the `pihole` user automatically.
 
 To check if the user `pihole` exists, you can use:
 
@@ -56,21 +64,97 @@ If not, the Pi-hole installer will create it automatically during the installati
    - During the installation process, you will be prompted to choose the DNS provider (e.g., Google DNS, Cloudflare, OpenDNS).
    - The installation script will also ask you to configure the blocking lists, web interface settings, and more.
 
-## Step 4: Access the Pi-hole Web Interface
+## Step 4: Configure Pi-hole to Run on Port 443
+
+To secure Pi-hole and make it run over HTTPS on port 443, follow these steps:
+
+1. **Edit the lighttpd configuration**:
+
+   Open the Pi-hole web server configuration file for **lighttpd**:
+
+   ```bash
+   sudo nano /etc/lighttpd/lighttpd.conf
+   ```
+
+2. **Change the port to 443**:
+
+   Look for the following line:
+
+   ```bash
+   server.modules += ( "mod_access" )
+   ```
+
+   Add the following configuration to bind Pi-hole to port 443:
+
+   ```bash
+   server.modules += ( "mod_ssl" )
+   server.modules += ( "mod_rewrite" )
+
+   $SERVER["socket"] == ":443" {
+       ssl.engine = "enable"
+       ssl.pemfile = "/etc/ssl/certs/pihole.pem"
+       ssl.certfile = "/etc/ssl/certs/pihole.pem"
+       ssl.keyfile = "/etc/ssl/private/pihole.key"
+   }
+   ```
+
+   Save and close the file.
+
+3. **Generate SSL certificates for Pi-hole**:
+
+   If you don't have SSL certificates, you can create self-signed certificates for Pi-hole:
+
+   ```bash
+   sudo openssl req -new -x509 -days 365 -nodes -out /etc/ssl/certs/pihole.pem -keyout /etc/ssl/private/pihole.key
+   ```
+
+4. **Restart lighttpd**:
+
+   Restart the Pi-hole web server to apply the changes:
+
+   ```bash
+   sudo systemctl restart lighttpd
+   ```
+
+## Step 5: Configure Firewall (firewalld)
+
+1. **Install firewalld** (if not installed already):
+
+   ```bash
+   sudo dnf install firewalld -y
+   ```
+
+2. **Start and enable firewalld**:
+
+   ```bash
+   sudo systemctl start firewalld
+   sudo systemctl enable firewalld
+   ```
+
+3. **Allow traffic on port 443**:
+
+   To ensure Pi-hole is accessible over HTTPS, open port 443:
+
+   ```bash
+   sudo firewall-cmd --zone=public --add-port=443/tcp --permanent
+   sudo firewall-cmd --reload
+   ```
+
+## Step 6: Access the Pi-hole Web Interface
 
 Once the installation is complete, Pi-hole can be managed through its web interface:
 
 1. Open your web browser and go to:
 
    ```
-   http://<your-server-ip>/admin
+   https://<your-server-ip>/admin
    ```
 
    Replace `<your-server-ip>` with the IP address of your Fedora server.
 
 2. Log in using the password set during the installation process.
 
-## Step 5: Pi-hole Service Management
+## Step 7: Pi-hole Service Management
 
 Pi-hole is set up to run as a service under the `pihole` user. 
 
@@ -118,3 +202,4 @@ Pi-hole is set up to run as a service under the `pihole` user.
 - For advanced configuration, consult the [Pi-hole documentation](https://docs.pi-hole.net/).
 
 Enjoy your ad-blocking experience with Pi-hole on Fedora!
+
